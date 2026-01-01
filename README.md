@@ -105,3 +105,73 @@ The UI is designed to be visually appealing, clean, and professional.
 1. Clone the repository  
    ```bash
    git clone https://github.com/your-username/Restaurent-s-Website.git
+
+2. Navigate to the project directory
+   cd Restaurent-s-Website
+
+3. Open index.html in your browser
+   open index.html
+
+No additional setup required 🚀
+
+## 📂 Project Structure
+
+Restaurent-s-Website/
+│
+├── index.html # Main HTML file
+├── css/
+│ └── style.css # Styling and layout
+├── js/
+│ └── script.js # Interactivity
+└── assets/
+└── images/ # Images and media
+
+## 🤝 Contribution
+
+Contributions are welcome and appreciated!
+
+You can:
+
+Fork the repository 🍴
+
+Improve UI or responsiveness 🎨
+
+Add new features ✨
+
+Fix bugs 🐛
+
+Submit a pull request 🚀
+
+## ⭐ Support & Feedback
+
+If you find this project useful:
+
+Give it a ⭐ on GitHub
+
+Share it with fellow developers
+
+Use it as inspiration for your own projects
+
+Your feedback helps me grow as a developer.
+
+## 👨‍💻 Author
+
+Ilyas
+🎓 Engineering Student
+💻 Frontend & Software Developer
+🚀 Passionate about clean UI, scalable code, and real-world applications
+
+“Focused on clean code, strong architecture, and real-world impact.”
+
+## 📜 License
+
+This project is licensed under the MIT License.
+You are free to use, modify, and distribute this project.
+
+## ✅ Conclusion
+
+Restaurent-s-Website represents a balance of design, functionality, and professionalism.
+It demonstrates the ability to build visually appealing and user-friendly web applications using core frontend technologies.
+
+Thank you for exploring this project.
+## Happy Coding & Happy Designing! 🚀

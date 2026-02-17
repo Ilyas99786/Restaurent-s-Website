@@ -75,7 +75,6 @@
     <section id="menu">
         <h2>Our Menu</h2>
 
-        <!-- SEARCH BAR -->
         <div class="search-wrap">
             <input type="text" id="search-input" placeholder="Search items like burger, pizza, fries...">
         </div>
@@ -187,6 +186,12 @@
                     <input type="checkbox" id="paid-confirm">
                     I have paid successfully
                 </label>
+
+                <div class="upload-proof">
+                    <label for="payment-proof">Upload Payment Screenshot (Required)</label>
+                    <input type="file" id="payment-proof" accept="image/*">
+                    <p class="proof-note">Only supplier can view this proof.</p>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary">Submit Order</button>

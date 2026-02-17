@@ -341,7 +341,6 @@ input, select {
     box-shadow: var(--shadow);
     position: relative;
 
-    /* FIX SCROLL */
     max-height: 85vh;
     overflow-y: auto;
 }
@@ -422,6 +421,46 @@ input, select {
     color: rgba(255,255,255,0.8);
 }
 
+/* UPLOAD PROOF */
+.upload-proof {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.upload-proof label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: rgba(255,255,255,0.85);
+    font-weight: 600;
+}
+
+.upload-proof input[type="file"] {
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.8);
+}
+
+.proof-note {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.55);
+}
+
+.proof-img {
+    margin-top: 0.8rem;
+    width: 100%;
+    max-width: 280px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: var(--shadow);
+}
+
 /* Timeline */
 .timeline {
     margin-top: 0.9rem;
@@ -496,7 +535,6 @@ input, select {
     z-index: 9999;
 }
 
-/* Responsive */
 @media (max-width: 900px) {
     .dashboard-grid {
         grid-template-columns: 1fr;

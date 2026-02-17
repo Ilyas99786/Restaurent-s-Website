@@ -6,8 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
 
     const UPI_ID = "forfoodies@upi";
-
-    // Delivery settings
     const ESTIMATED_DELIVERY_MINUTES = 30;
 
     // DOM
@@ -27,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const menuItems = document.getElementById("menu-items");
     const orderHistory = document.getElementById("order-history");
 
-    // Search
     const searchInput = document.getElementById("search-input");
 
     // Supplier
@@ -48,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeOrderModalBtn = document.getElementById("close-order-modal");
     const closeCartBtn = document.getElementById("close-cart");
 
-    // Order modal fields
+    // Order modal
     const selectedItemName = document.getElementById("selected-item-name");
     const selectedItemPrice = document.getElementById("selected-item-price");
 
@@ -59,11 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const orderAddress = document.getElementById("order-address");
     const orderPayment = document.getElementById("order-payment");
 
-    // Online payment UI
+    // Online payment
     const qrBox = document.getElementById("qr-box");
     const upiIdText = document.getElementById("upi-id-text");
     const upiAmountText = document.getElementById("upi-amount-text");
     const paidConfirm = document.getElementById("paid-confirm");
+    const paymentProof = document.getElementById("payment-proof");
 
     // Cart
     const cartOrders = document.getElementById("cart-orders");
@@ -77,17 +75,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------------
     // HELPERS
     // -------------------------------
-    function saveUsers() {
-        localStorage.setItem("users", JSON.stringify(users));
-    }
-
-    function saveItems() {
-        localStorage.setItem("items", JSON.stringify(items));
-    }
-
-    function saveOrders() {
-        localStorage.setItem("orders", JSON.stringify(orders));
-    }
+    function saveUsers() { localStorage.setItem("users", JSON.stringify(users)); }
+    function saveItems() { localStorage.setItem("items", JSON.stringify(items)); }
+    function saveOrders() { localStorage.setItem("orders", JSON.stringify(orders)); }
 
     function formatMoney(amount) {
         return `₹${Number(amount).toFixed(2).replace(/\.00$/, "")}`;
@@ -99,9 +89,12 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => el.style.display = "none", 2200);
     }
 
-    function getOrderStatusBadge(status) {
-        const s = (status || "pending").toLowerCase();
+    function getOrderStatusBadge(order) {
+        const s = (order.status || "pending").toLowerCase();
+
         if (s === "cancelled") return `<span class="badge cancelled">Cancelled</span>`;
+        if (s === "payment_pending") return `<span class="badge pending">Payment Pending</span>`;
+        if (s === "payment_declined") return `<span class="badge cancelled">Payment Declined</span>`;
         if (s === "preparing") return `<span class="badge pending">Preparing</span>`;
         if (s === "delivered") return `<span class="badge pending">Delivered</span>`;
         return `<span class="badge pending">Pending</span>`;
@@ -110,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function getTimelineHTML(order) {
         const s = (order.status || "pending").toLowerCase();
 
-        if (s === "cancelled") {
+        if (s === "cancelled" || s === "payment_declined") {
             return `
                 <div class="timeline">
                     <span class="step cancelled">Cancelled</span>
@@ -118,11 +111,24 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }
 
+        if (s === "payment_pending") {
+            return `
+                <div class="timeline">
+                    <span class="step active">Payment Pending</span>
+                    <span class="step">Pending</span>
+                    <span class="step">Preparing</span>
+                    <span class="step">Delivered</span>
+                </div>
+                <p style="text-align:center; margin-top:8px; color:rgba(255,255,255,0.7);">
+                    Waiting for supplier approval...
+                </p>
+            `;
+        }
+
         const pendingClass = (s === "pending") ? "active" : "done";
         const preparingClass = (s === "preparing") ? "active" : (s === "delivered" ? "done" : "");
         const deliveredClass = (s === "delivered") ? "done" : "";
 
-        // Delivery time info
         let deliveryInfo = "";
 
         if (s === "pending") {
@@ -160,49 +166,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return `
             <div class="invoice">
                 <h4>Invoice Receipt</h4>
-
-                <div class="invoice-row">
-                    <span>Item</span>
-                    <b>${order.itemName}</b>
-                </div>
-
-                <div class="invoice-row">
-                    <span>Quantity</span>
-                    <b>${order.quantity}</b>
-                </div>
-
-                <div class="invoice-row">
-                    <span>Total</span>
-                    <b>${formatMoney(order.total)}</b>
-                </div>
-
-                <div class="invoice-row">
-                    <span>Payment</span>
-                    <b>${pay}</b>
-                </div>
-
+                <div class="invoice-row"><span>Item</span><b>${order.itemName}</b></div>
+                <div class="invoice-row"><span>Quantity</span><b>${order.quantity}</b></div>
+                <div class="invoice-row"><span>Total</span><b>${formatMoney(order.total)}</b></div>
+                <div class="invoice-row"><span>Payment</span><b>${pay}</b></div>
                 ${order.paymentMethod === "online"
-                    ? `<div class="invoice-row">
-                        <span>UPI ID</span>
-                        <b>${order.upiId || UPI_ID}</b>
-                       </div>`
+                    ? `<div class="invoice-row"><span>UPI ID</span><b>${order.upiId || UPI_ID}</b></div>`
                     : ""
                 }
-
-                <div class="invoice-row">
-                    <span>Customer</span>
-                    <b>${order.customerName}</b>
-                </div>
-
-                <div class="invoice-row">
-                    <span>Contact</span>
-                    <b>${order.customerContact}</b>
-                </div>
-
-                <div class="invoice-row">
-                    <span>Address</span>
-                    <b>${order.customerAddress}</b>
-                </div>
             </div>
         `;
     }
@@ -214,8 +185,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const myOrders = orders.filter(o => o.customerName === currentUser.name);
-        const active = myOrders.filter(o => o.status === "pending" || o.status === "preparing");
+        const active = myOrders.filter(o =>
+            o.status === "payment_pending" ||
+            o.status === "pending" ||
+            o.status === "preparing"
+        );
+
         cartCount.textContent = String(active.length);
+    }
+
+    // Convert file to Base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
     // -------------------------------
@@ -234,9 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     resetToRolePage();
 
-    // -------------------------------
-    // ROLE BUTTONS
-    // -------------------------------
+    // Role buttons
     document.getElementById("customer-btn").addEventListener("click", () => showAuth("customer"));
     document.getElementById("supplier-btn").addEventListener("click", () => showAuth("supplier"));
 
@@ -263,9 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loginForm.style.display = "block";
     });
 
-    // -------------------------------
-    // SIGNUP
-    // -------------------------------
+    // Signup
     document.getElementById("signup").addEventListener("submit", (e) => {
         e.preventDefault();
 
@@ -296,9 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loginForm.style.display = "block";
     });
 
-    // -------------------------------
-    // LOGIN
-    // -------------------------------
+    // Login
     document.getElementById("login").addEventListener("submit", (e) => {
         e.preventDefault();
 
@@ -340,20 +320,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (currentUser) showDashboard();
 
-    // Logout
     logoutBtn.addEventListener("click", () => {
         currentUser = null;
         localStorage.removeItem("currentUser");
         resetToRolePage();
     });
 
-    // -------------------------------
-    // SEARCH FEATURE
-    // -------------------------------
+    // Search
     if (searchInput) {
-        searchInput.addEventListener("input", () => {
-            loadCustomerMenu(searchInput.value);
-        });
+        searchInput.addEventListener("input", () => loadCustomerMenu(searchInput.value));
     }
 
     // -------------------------------
@@ -363,11 +338,8 @@ document.addEventListener("DOMContentLoaded", () => {
         menuItems.innerHTML = "";
 
         let filtered = items;
-
         if (searchTerm.trim() !== "") {
-            filtered = items.filter(i =>
-                i.name.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            filtered = items.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
         }
 
         if (filtered.length === 0) {
@@ -406,6 +378,8 @@ document.addEventListener("DOMContentLoaded", () => {
         qrBox.style.display = "none";
         paidConfirm.checked = false;
 
+        if (paymentProof) paymentProof.value = "";
+
         upiIdText.textContent = UPI_ID;
         upiAmountText.textContent = formatMoney(item.price);
 
@@ -428,6 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             qrBox.style.display = "none";
             paidConfirm.checked = false;
+            if (paymentProof) paymentProof.value = "";
         }
     });
 
@@ -435,7 +410,7 @@ document.addEventListener("DOMContentLoaded", () => {
     closeCartBtn.addEventListener("click", () => cartModal.style.display = "none");
 
     // Submit order
-    orderForm.addEventListener("submit", (e) => {
+    orderForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const qty = parseInt(orderQuantity.value);
@@ -449,9 +424,29 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (payment === "online" && !paidConfirm.checked) {
-            alert("Please confirm: I have paid successfully");
-            return;
+        // ONLINE PAYMENT VALIDATION
+        let proofBase64 = null;
+
+        if (payment === "online") {
+            if (!paidConfirm.checked) {
+                alert("Please confirm: I have paid successfully");
+                return;
+            }
+
+            if (!paymentProof || !paymentProof.files || paymentProof.files.length === 0) {
+                alert("Please upload payment screenshot proof!");
+                return;
+            }
+
+            const file = paymentProof.files[0];
+
+            if (!file.type.startsWith("image/")) {
+                alert("Only image files allowed!");
+                return;
+            }
+
+            // Convert image to Base64 for localStorage
+            proofBase64 = await fileToBase64(file);
         }
 
         const total = currentOrderItem.price * qty;
@@ -472,7 +467,13 @@ document.addEventListener("DOMContentLoaded", () => {
             paymentConfirmed: payment === "online",
             upiId: payment === "online" ? UPI_ID : null,
 
-            status: "pending",
+            paymentProof: payment === "online" ? proofBase64 : null,
+            paymentApproval: payment === "online" ? "pending" : "not_required",
+
+            // IMPORTANT:
+            // Online payment order must wait for approval
+            status: payment === "online" ? "payment_pending" : "pending",
+
             createdAt: new Date().toISOString(),
             deliveredAt: null
         };
@@ -505,7 +506,11 @@ document.addEventListener("DOMContentLoaded", () => {
             .filter(o => o.customerName === currentUser.name)
             .sort((a, b) => b.id - a.id);
 
-        const activeOrders = myOrders.filter(o => o.status === "pending" || o.status === "preparing");
+        const activeOrders = myOrders.filter(o =>
+            o.status === "payment_pending" ||
+            o.status === "pending" ||
+            o.status === "preparing"
+        );
 
         if (activeOrders.length === 0) {
             cartOrders.innerHTML = `<p style="color: rgba(255,255,255,0.7)">No active orders.</p>`;
@@ -517,7 +522,7 @@ document.addEventListener("DOMContentLoaded", () => {
             div.className = "order";
 
             div.innerHTML = `
-                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order.status)}<br>
+                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order)}<br>
                 Item: ${order.itemName}<br>
                 Quantity: ${order.quantity}<br>
                 Total: ${formatMoney(order.total)}<br>
@@ -530,10 +535,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         ? `<button class="btn btn-danger" onclick="cancelOrder(${order.id}, 'customer')">Cancel Order</button>`
                         : ""
                     }
-
-                    <button class="btn btn-secondary" onclick="downloadInvoicePDF(${order.id})">
-                        Download Invoice PDF
-                    </button>
                 </div>
             `;
 
@@ -551,7 +552,11 @@ document.addEventListener("DOMContentLoaded", () => {
             .filter(o => o.customerName === currentUser.name)
             .sort((a, b) => b.id - a.id);
 
-        const historyOrders = myOrders.filter(o => o.status === "delivered" || o.status === "cancelled");
+        const historyOrders = myOrders.filter(o =>
+            o.status === "delivered" ||
+            o.status === "cancelled" ||
+            o.status === "payment_declined"
+        );
 
         if (historyOrders.length === 0) {
             orderHistory.innerHTML = `<p style="color: rgba(255,255,255,0.7); text-align:center;">No history yet.</p>`;
@@ -563,19 +568,13 @@ document.addEventListener("DOMContentLoaded", () => {
             div.className = "order";
 
             div.innerHTML = `
-                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order.status)}<br>
+                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order)}<br>
                 Item: ${order.itemName}<br>
                 Quantity: ${order.quantity}<br>
                 Total: ${formatMoney(order.total)}<br>
 
                 ${getTimelineHTML(order)}
                 ${getInvoiceHTML(order)}
-
-                <div class="actions">
-                    <button class="btn btn-secondary" onclick="downloadInvoicePDF(${order.id})">
-                        Download Invoice PDF
-                    </button>
-                </div>
             `;
 
             orderHistory.appendChild(div);
@@ -612,18 +611,38 @@ document.addEventListener("DOMContentLoaded", () => {
             const li = document.createElement("li");
             li.className = "order";
 
+            const proofHTML =
+                (order.paymentMethod === "online" && order.paymentProof)
+                    ? `
+                        <div style="margin-top: 10px;">
+                            <b style="color: #ffcc66;">Payment Proof Screenshot:</b><br>
+                            <img src="${order.paymentProof}" class="proof-img" alt="Payment Proof">
+                        </div>
+                      `
+                    : "";
+
             li.innerHTML = `
-                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order.status)}<br>
+                <strong>Order ID: ${order.id}</strong> ${getOrderStatusBadge(order)}<br>
                 Item: ${order.itemName}<br>
                 Customer: ${order.customerName}<br>
                 Contact: ${order.customerContact}<br>
                 Address: ${order.customerAddress}<br>
                 Quantity: ${order.quantity}<br>
                 Total: ${formatMoney(order.total)}<br>
+                Payment: ${order.paymentMethod === "online" ? "Online (UPI)" : order.paymentMethod}<br>
 
                 ${getTimelineHTML(order)}
+                ${proofHTML}
 
                 <div class="actions">
+                    ${order.status === "payment_pending"
+                        ? `
+                            <button class="btn btn-primary" onclick="approvePayment(${order.id})">Approve Payment</button>
+                            <button class="btn btn-danger" onclick="declinePayment(${order.id})">Decline Payment</button>
+                          `
+                        : ""
+                    }
+
                     ${order.status === "pending"
                         ? `
                             <button class="btn btn-secondary" onclick="setOrderStatus(${order.id}, 'preparing')">Mark Preparing</button>
@@ -642,6 +661,59 @@ document.addEventListener("DOMContentLoaded", () => {
             ordersList.appendChild(li);
         });
     }
+
+    // -------------------------------
+    // SUPPLIER ACTIONS
+    // -------------------------------
+    window.approvePayment = function(orderId) {
+        orders = orders.map(o => {
+            if (o.id === orderId) {
+                return {
+                    ...o,
+                    paymentApproval: "approved",
+                    status: "pending",
+                    paymentApprovedAt: new Date().toISOString()
+                };
+            }
+            return o;
+        });
+
+        saveOrders();
+        loadSupplierDashboard();
+        renderCartOrders();
+        renderCustomerHistory();
+        updateCartCount();
+        updateAnalytics();
+
+        alert("Payment approved. Order moved to Pending.");
+    };
+
+    window.declinePayment = function(orderId) {
+        const reason = prompt("Reason for decline (optional):") || "Payment declined";
+
+        orders = orders.map(o => {
+            if (o.id === orderId) {
+                return {
+                    ...o,
+                    paymentApproval: "declined",
+                    status: "payment_declined",
+                    cancelledBy: "supplier",
+                    cancelledReason: reason,
+                    cancelledAt: new Date().toISOString()
+                };
+            }
+            return o;
+        });
+
+        saveOrders();
+        loadSupplierDashboard();
+        renderCartOrders();
+        renderCustomerHistory();
+        updateCartCount();
+        updateAnalytics();
+
+        alert("Payment declined and order cancelled.");
+    };
 
     // Add item
     addItemForm.addEventListener("submit", (e) => {
@@ -695,7 +767,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // cancel orders
         orders = orders.map(o => {
-            if (o.itemId === itemId && (o.status === "pending" || o.status === "preparing")) {
+            if (o.itemId === itemId && (
+                o.status === "payment_pending" ||
+                o.status === "pending" ||
+                o.status === "preparing"
+            )) {
                 return {
                     ...o,
                     status: "cancelled",
@@ -742,13 +818,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const order = orders.find(o => o.id === orderId);
         if (!order) return;
 
-        if (order.status !== "pending" && order.status !== "preparing") {
-            alert("Cannot cancel now.");
+        // Customer can cancel only pending
+        if (byRole === "customer" && order.status !== "pending") {
+            alert("Customer can cancel only while Pending.");
             return;
         }
 
-        if (byRole === "customer" && order.status !== "pending") {
-            alert("Customer can cancel only while Pending.");
+        // Supplier can cancel pending/preparing
+        if (byRole === "supplier" && !(order.status === "pending" || order.status === "preparing")) {
+            alert("Supplier cannot cancel now.");
             return;
         }
 
@@ -779,52 +857,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const delivered = orders.filter(o => o.status === "delivered");
         statDelivered.textContent = delivered.length;
 
-        const cancelled = orders.filter(o => o.status === "cancelled").length;
+        const cancelled = orders.filter(o => o.status === "cancelled" || o.status === "payment_declined").length;
         statCancelled.textContent = cancelled;
 
         const revenue = delivered.reduce((sum, o) => sum + Number(o.total), 0);
         statRevenue.textContent = formatMoney(revenue);
     }
-
-    // PDF Invoice
-    window.downloadInvoicePDF = function(orderId) {
-        const order = orders.find(o => o.id === orderId);
-        if (!order) return;
-
-        const pay = order.paymentMethod === "online" ? "Online (UPI)" : order.paymentMethod;
-
-        const html = `
-            <html>
-            <head>
-                <title>Invoice ${order.id}</title>
-                <style>
-                    body { font-family: Arial; padding: 20px; }
-                    .box { border: 1px solid #ccc; padding: 15px; border-radius: 10px; }
-                    .row { display:flex; justify-content:space-between; margin: 8px 0; }
-                </style>
-            </head>
-            <body>
-                <h2>ForFoodies - Invoice</h2>
-                <p>Order ID: ${order.id}</p>
-                <div class="box">
-                    <div class="row"><span>Item</span><b>${order.itemName}</b></div>
-                    <div class="row"><span>Quantity</span><b>${order.quantity}</b></div>
-                    <div class="row"><span>Total</span><b>${formatMoney(order.total)}</b></div>
-                    <div class="row"><span>Payment</span><b>${pay}</b></div>
-                    <div class="row"><span>Status</span><b>${order.status.toUpperCase()}</b></div>
-                </div>
-
-                <script>
-                    window.onload = () => window.print();
-                </script>
-            </body>
-            </html>
-        `;
-
-        const w = window.open("", "_blank");
-        w.document.open();
-        w.document.write(html);
-        w.document.close();
-    };
 
 });
